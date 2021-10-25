@@ -1,0 +1,234 @@
+C51 COMPILER V9.60.0.0   MAIN                                                              10/25/2021 12:49:47 PAGE 1   
+
+
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE main.c LARGE OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listing
+                    -s\main.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include "C8051F360.h"
+   2          #include <stdio.h>
+   3          #include <string.h>
+   4          
+   5          #define PP1_1 0x01
+   6          #define PP1_3 0x03
+   7          #define PP1_5 0x05
+   8          #define PP1_7 0x07
+   9          #define PP2_1 0x09
+  10          #define PP2_3 0x0B
+  11          #define NP1_0 0x00
+  12          #define NP1_2 0x02
+  13          #define NP1_4 0x04
+  14          #define NP1_6 0x06
+  15          #define NP2_0 0x08
+  16          #define NP2_2 0x0A
+  17          
+  18          sbit DE = P0^6;           //driver tx/rx control, rs485, DE
+  19          
+  20          unsigned int j = 0;       //counter for sending messages once per second
+  21          unsigned int k = 0;       //counter for sending an array byte by byte
+  22          bit ADCStartProcess = 1;
+  23          unsigned char result [24];
+  24          
+  25          struct ADCdata {
+  26            unsigned char High_byte_ch1;
+  27            unsigned char Low_byte_ch1;
+  28            unsigned char High_byte_ch2;
+  29            unsigned char Low_byte_ch2;
+  30            unsigned char High_byte_ch3;
+  31            unsigned char Low_byte_ch3;
+  32            unsigned char High_byte_ch4;
+  33            unsigned char Low_byte_ch4;
+  34            unsigned char High_byte_ch5;
+  35            unsigned char Low_byte_ch5;
+  36            unsigned char High_byte_ch6;
+  37            unsigned char Low_byte_ch6;
+  38          } ADC;
+  39          
+  40          void ADCdata_Init(void)
+  41          {
+  42   1        ADC.High_byte_ch1 = 0;
+  43   1        ADC.Low_byte_ch1 = 0;
+  44   1        ADC.High_byte_ch2 = 0;
+  45   1        ADC.Low_byte_ch2 = 0;
+  46   1        ADC.High_byte_ch3 = 0;
+  47   1        ADC.Low_byte_ch3 = 0;
+  48   1        ADC.High_byte_ch4 = 0;
+  49   1        ADC.Low_byte_ch4 = 0;
+  50   1        ADC.High_byte_ch5 = 0;
+  51   1        ADC.Low_byte_ch5 = 0;
+  52   1        ADC.High_byte_ch6 = 0;
+  53   1        ADC.Low_byte_ch6 = 0;
+  54   1      }
+C51 COMPILER V9.60.0.0   MAIN                                                              10/25/2021 12:49:47 PAGE 2   
+
+  55          
+  56          void PCA_Init()
+  57          {
+  58   1          PCA0MD    = 0x00;
+  59   1          PCA0CPM5  = 0x48;
+  60   1      }
+  61          
+  62          void Timer_Init()
+  63          {
+  64   1          TCON      = 0x40;
+  65   1          TMOD      = 0x21;
+  66   1          TH1       = 0x95;
+  67   1          TR0       = 1;
+  68   1          TR1       = 1;
+  69   1        
+  70   1      }
+  71          
+  72          void UART_Init()
+  73          {
+  74   1          SCON0     = 0x10;
+  75   1      }
+  76          
+  77          void ADC_Init()
+  78          {
+  79   1          ADC0CF    = 0xA0;
+  80   1          ADC0CN    = 0x80;
+  81   1      }
+  82          
+  83          void Voltage_Reference_Init()
+  84          {
+  85   1          REF0CN    = 0x07;
+  86   1      }
+  87          
+  88          void Port_IO_Init()
+  89          {
+  90   1          SFRPAGE   = CONFIG_PAGE;
+  91   1          P0MDIN    = 0xFE;
+  92   1          P1MDIN    = 0x00;
+  93   1          P2MDIN    = 0xF0;
+  94   1          P0MDOUT   = 0xFF;
+  95   1          P0SKIP    = 0x01;
+  96   1          P1SKIP    = 0xFF;
+  97   1          P2SKIP    = 0x0F;
+  98   1          XBR0      = 0x01;
+  99   1          XBR1      = 0x40;
+ 100   1      }
+ 101          
+ 102          void Oscillator_Init()
+ 103          {
+ 104   1          SFRPAGE   = CONFIG_PAGE;
+ 105   1          OSCICN    = 0x83;
+ 106   1      }
+ 107          
+ 108          void Interrupts_Init()
+ 109          {
+ 110   1          SFRPAGE   = CONFIG_PAGE;
+ 111   1          IE        = 0x82;
+ 112   1      
+ 113   1      }
+ 114          
+ 115          void Init_Device(void)
+ 116          {
+C51 COMPILER V9.60.0.0   MAIN                                                              10/25/2021 12:49:47 PAGE 3   
+
+ 117   1          PCA_Init();
+ 118   1          Timer_Init();
+ 119   1          UART_Init();
+ 120   1          ADC_Init();
+ 121   1          Voltage_Reference_Init();
+ 122   1          Port_IO_Init();
+ 123   1          Oscillator_Init();
+ 124   1          Interrupts_Init();
+ 125   1          ADCdata_Init();
+ 126   1      }
+ 127          
+ 128          void UART0_transmit(unsigned char data0)
+ 129          { 
+ 130   1        char SFRPAGE_SAVE = SFRPAGE; 
+ 131   1        SFRPAGE = UART0_PAGE; 
+ 132   1        SBUF0 = data0;
+ 133   1        while(!TI0);          
+ 134   1        TI0 = 0;
+ 135   1        SFRPAGE = SFRPAGE_SAVE;
+ 136   1      }
+ 137          
+ 138          void ADC_read(unsigned char x, unsigned char y, unsigned char *data1, unsigned char *data2)
+ 139          {
+ 140   1        int i = 0, High = 0, Low = 0, figure = 0, Sum = 0;
+ 141   1        AD0BUSY = 0;
+ 142   1        AMX0N = x;
+ 143   1        AMX0P = y;
+ 144   1        for (i = 0; i < 7; i++)
+ 145   1          {
+ 146   2            if(AD0BUSY == 0)
+ 147   2            {
+ 148   3              AD0INT = 0;
+ 149   3              ADC0H = 0x00;
+ 150   3              ADC0L = 0x00;
+ 151   3              AD0BUSY = 1;
+ 152   3              while (AD0INT != 1) {}
+ 153   3              if (AD0INT == 1)
+ 154   3              {
+ 155   4                High = ADC0H;
+ 156   4                Low = ADC0L;
+ 157   4                figure = (High << 8) + Low;
+ 158   4                Sum = Sum + figure;
+ 159   4              }
+ 160   3            }
+ 161   2          }
+ 162   1        Sum = Sum/8;
+ 163   1        *data1 = (Sum >> 8);
+ 164   1        *data2 = Sum;
+ 165   1      }
+ 166          
+ 167          void timer0_ISR (void) interrupt 1 
+ 168          {
+ 169   1        j++;
+ 170   1        if((j == 33) && (ADCStartProcess == 0))
+ 171   1        {
+ 172   2          j=0;
+ 173   2          TL0 = 0x00;
+ 174   2          TH0 = 0x00;       
+ 175   2          TL0 = 0xFF;       
+ 176   2          sprintf(result, "$01%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c%c!\r\n", 1, ADC.High_byte_ch1, ADC.Low_byte_ch1, 
+             -2, ADC.High_byte_ch2, ADC.Low_byte_ch2, 3, ADC.High_byte_ch3, ADC.Low_byte_ch3, 4, ADC.High_byte_ch4, ADC.Low_byte_ch4, 
+             -5, ADC.High_byte_ch5, ADC.Low_byte_ch5, 6, ADC.High_byte_ch6, ADC.Low_byte_ch6);
+C51 COMPILER V9.60.0.0   MAIN                                                              10/25/2021 12:49:47 PAGE 4   
+
+ 177   2          for (k = 0; k < 24; k++)
+ 178   2          {
+ 179   3            UART0_transmit(result[k]);
+ 180   3          }
+ 181   2          ADCStartProcess = 1;
+ 182   2        }
+ 183   1      }
+ 184          
+ 185          void main()
+ 186          {
+ 187   1        Init_Device();
+ 188   1        DE = 1;
+ 189   1        while(1)
+ 190   1        {
+ 191   2          if (ADCStartProcess == 1)
+ 192   2          {
+ 193   3          ADC_read(PP1_1, NP1_0, &ADC.High_byte_ch6, &ADC.Low_byte_ch6);
+ 194   3          ADC_read(PP1_3, NP1_2, &ADC.High_byte_ch5, &ADC.Low_byte_ch5);
+ 195   3          ADC_read(PP1_5, NP1_4, &ADC.High_byte_ch4, &ADC.Low_byte_ch4);
+ 196   3          ADC_read(PP1_7, NP1_6, &ADC.High_byte_ch3, &ADC.Low_byte_ch3);
+ 197   3          ADC_read(PP2_1, NP2_0, &ADC.High_byte_ch2, &ADC.Low_byte_ch2);
+ 198   3          ADC_read(PP2_3, NP2_2, &ADC.High_byte_ch1, &ADC.Low_byte_ch1);
+ 199   3          ADCStartProcess = 0;
+ 200   3          }
+ 201   2        }
+ 202   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    807    ----
+   CONSTANT SIZE    =     43    ----
+   XDATA SIZE       =     40      14
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
